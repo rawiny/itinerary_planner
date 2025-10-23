@@ -6,7 +6,7 @@ from streamlit_folium import st_folium
 
 from optimiser import solve_itinerary
 
-'''
+_ = '''
 1) users input their places they want to visit one by one. And users can mark if this place is a hotel they want to stay. (Users can input more than 1 hotel as the app can help users to select the hotels that suit users' need.) If this place is not a hotel, can input the time they want to spend here.
 1.1) all the places users add will be shown on the map. (If possible, use one sign for attractions and another one for hotels.)
 2) there are at least two ways for users to input the places: map and search in a text box and etc. (if you have a better idea, I want to hear from you.)
@@ -21,6 +21,31 @@ st.markdown("""
 This app helps you plan an optimized travel itinerary based on your preferences.
 You can input places you want to visit, select hotels, set your trip duration, and specify your travel style and daily limits. The app will generate multiple itinerary options for you to choose from.
 """)
+
+@st.cache_data
+def get_route_geometry( start_coords: dict, end_coords: dict, travel_mode = "drive") -> dict:
+    api_key = st.secrets["GEOAPIFY_API_KEY"]
+
+    start_point = f"{start_coords['lat']},{start_coords['lon']}"
+    end_point = f"{end_coords['lat']},{end_coords['lon']}"
+    
+    url = (f"https://api.geoapify.com/v1/routing?"
+           f"waypoints={start_point}|{end_point}"
+           f"&mode={travel_mode}&apiKey={api_key}")
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for HTTP errors
+        data = response.json()
+        
+        # read route geometry from response json
+        if 'features' in data and len(data['features']) > 0:
+            route_geometry = data['features'][0]['geometry']
+            return route_geometry
+    except requests.exceptions.RequestException as e:
+        st.error(f"Failed to get route geometry: {e}")
+        return {}
+
 with st.sidebar:
     st.header("Input Your Trip Details")
 
@@ -57,7 +82,7 @@ with st.sidebar:
                 'lat': lat,
                 'lon': lon
             })
-            st.write(f"Added place: {place_name}, Hotel: {is_hotel}, Duration: {visit_duration} hours, Lat: {lat}, Lon: {lon}")
+            #st.write(f"Added place: {place_name}, Hotel: {is_hotel}, Duration: {visit_duration} hours, Lat: {lat}, Lon: {lon}")
             st.success(f"Added {place_name}.")
 
     # Display added places
@@ -139,7 +164,6 @@ with st.expander("View Generated Itineraries"):
                 # Map Visualization
                 m = folium.Map(location=[0, 0], zoom_start=2)
                 # Mark the hotels on the map
-                st.write(itinerary['daily_routes'])
                 for place in itinerary['daily_routes'][0]:  # Assuming first day's plan includes the hotel
                     if place.get('is_hotel'):
                         folium.Marker(
@@ -159,7 +183,22 @@ with st.expander("View Generated Itineraries"):
                             popup=f"Day {day_idx + 1}: {place['name']}",
                             icon=folium.Icon(color='blue' if not place.get('is_hotel') else 'red')
                         ).add_to(m)
-                    # Display route on map
-                    folium.PolyLine(locations=[(place.get('lat', 0), place.get('lon', 0)) for place in daily_plan], color=colors[day_idx % len(colors)]).add_to(m)
+                    # Display route geometry on map
+                    #folium.PolyLine(locations=[(place.get('lat', 0), place.get('lon', 0)) for place in daily_plan], color=colors[day_idx % len(colors)]).add_to(m)
+                    for i in range(len(daily_plan) - 1):
+                        start_place = daily_plan[i]
+                        end_place = daily_plan[i + 1]
+                        route_geometry = get_route_geometry(
+                            start_coords={'lat': start_place.get('lat', 0), 'lon': start_place.get('lon', 0)},
+                            end_coords={'lat': end_place.get('lat', 0), 'lon': end_place.get('lon', 0)},
+                            travel_mode="drive"
+                        )
+                        if route_geometry and 'coordinates' in route_geometry:
+                            locations = [(coord[1], coord[0]) for coord in route_geometry['coordinates'][0]]
+                            folium.PolyLine(
+                                locations=locations,
+                                color=colors[day_idx % len(colors)]
+                            ).add_to(m)
                 
                 st_folium(m, width=700, height=500)
+                
