@@ -116,12 +116,14 @@ with st.sidebar:
     }
     if st.button("Generate Itinerary"):
         with st.spinner("Optimizing your itinerary..."):
-            potential_attractions = [p for p in st.session_state.places if not p['is_hotel']]
-            potential_hotels = [p for p in st.session_state.places if p['is_hotel']]
+
+            potential_hotels = [place for place in st.session_state.places if place['is_hotel']]
+            potential_attractions = [place for place in st.session_state.places if not place['is_hotel']]
 
             itineraries = solve_itinerary(
                 potential_hotels=potential_hotels,
                 potential_attractions=potential_attractions,
+                #places=st.session_state.places,
                 trip_duration_days=trip_duration_days,
                 max_daily_hours=max_daily_hours,
                 is_daily_limit_flexible=is_daily_limit_flexible,
@@ -143,6 +145,7 @@ with st.expander("View Generated Itineraries"):
         st.info("No itineraries generated yet.")
     elif 'itineraries' in st.session_state and st.session_state['itineraries']:
         itineraries = st.session_state['itineraries']
+        #st.write(itineraries)
         st.success("Itinerary generated successfully!")
         # Display itineraries in tabs
         tabs = st.tabs([itinerary['title'] for itinerary in itineraries])
