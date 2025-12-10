@@ -226,21 +226,22 @@ with col_map:
 
 with col_list:
     st.subheader("Your List")
-    if not st.session_state.places:
-        st.info("No places added yet.")
-    else:
-        for i, place in enumerate(st.session_state.places):
-            with st.container(border=True):
-                c_info, c_del = st.columns([4, 1])
-                with c_info:
-                    icon = "🏨" if place['is_hotel'] else "📍"
-                    st.markdown(f"**{icon} {place['name']}**")
-                    if not place['is_hotel']:
-                        st.caption(f"Duration: {place['duration']} hrs")
-                with c_del:
-                    if st.button("❌", key=f"del_{i}"):
-                        st.session_state.places.pop(i)
-                        st.rerun()
+    with st.container(height=500, border=True):
+        if not st.session_state.places:
+            st.info("No places added yet.")
+        else:
+            for i, place in enumerate(st.session_state.places):
+                with st.container(border=True):
+                    c_info, c_del = st.columns([4, 1])
+                    with c_info:
+                        icon = "🏨" if place['is_hotel'] else "📍"
+                        st.markdown(f"**{icon} {place['name']}**")
+                        if not place['is_hotel']:
+                            st.caption(f"Duration: {place['duration']} hrs")
+                    with c_del:
+                        if st.button("❌", key=f"del_{i}"):
+                            st.session_state.places.pop(i)
+                            st.rerun()
 
 st.divider()
 
